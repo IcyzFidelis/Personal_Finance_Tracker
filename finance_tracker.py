@@ -489,18 +489,18 @@ class FinanceTracker:
 
     def upload_csv(self):
         """
-        Upload a CSV file to replace all existing transactions.
+        Upload a CSV file to append transactions to the existing data.
 
         Validates the file structure, date format, amount positivity, and type values.
-        Recomputes balances after successful upload.
+        Appends the uploaded transactions to the current DataFrame, then recomputes balances.
         """
-        if not self.df.empty:
-            confirm = input(
-                "WARNING: Existing transactions will be REPLACED. Continue? (y/n): "
-            ).strip().lower()
-            if confirm != 'y':
-                print("Upload cancelled.")
-                return
+        # Confirm append operation
+        confirm = input(
+            "This will append transactions from the CSV to your existing data. Continue? (y/n): "
+        ).strip().lower()
+        if confirm != 'y':
+            print("Upload cancelled.")
+            return
 
         file_path = input("Enter the path to the CSV file: ").strip()
         if not os.path.exists(file_path):
@@ -554,14 +554,19 @@ class FinanceTracker:
                 print("Some rows have invalid Type (must be Income/Expense).")
                 return
 
-            # Remove any existing Balance column – we will recompute
+            # Remove any existing Balance column – we will recompute after appending
             if 'Balance' in uploaded_df.columns:
                 uploaded_df = uploaded_df.drop(columns=['Balance'])
 
-            self.df = uploaded_df.copy()
+            # Append to existing data (or set if no existing data)
+            if self.df is not None and not self.df.empty:
+                self.df = pd.concat([self.df, uploaded_df], ignore_index=True)
+            else:
+                self.df = uploaded_df.copy()
+
             self._recompute_balances()
             self.save_data()
-            print(f"Successfully loaded {len(uploaded_df)} transactions from CSV.")
+            print(f"Successfully appended {len(uploaded_df)} transactions from CSV.")
 
         except pd.errors.EmptyDataError:
             print("The CSV file is empty.")
